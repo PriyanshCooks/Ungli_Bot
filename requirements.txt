@@ -1,56 +1,41 @@
-# === Core web frameworks ===
-fastapi>=0.110.0
-uvicorn>=0.29.0
+# --- MongoDB ---
+pymongo
+motor
 
-# === MongoDB ===
-pymongo>=4.7.0
-motor>=3.4.0
+# --- HTTP / Async clients ---
+httpx
+aiohttp
+requests
 
-# === HTTP / Async clients ===
-httpx>=0.27.0
-aiohttp>=3.8.4
-requests>=2.31.0
+# --- Telegram Bot ---
+python-telegram-bot
 
-# === Python Telegram Bot ===
-python-telegram-bot>=20.0
+# --- Data modeling ---
+pydantic
+pydantic-ai
+typing_extensions
 
-# === Data modeling ===
-pydantic>=2.4
-pydantic-ai>=0.3.0
-typing_extensions>=4.5
+# --- Environment, config, and utilities ---
+python-dotenv
+certifi
+itsdangerous
+nest_asyncio
+tqdm
 
-# === Environment, config, and utilities ===
-python-dotenv>=1.0.0
-certifi>=2024.2.2
-itsdangerous>=2.1.2
-nest_asyncio>=1.6.0
-tqdm>=4.66.0
+# --- String/NLP utilities ---
+fuzzywuzzy
+python-Levenshtein
 
-# === String matching/NLP ===
-fuzzywuzzy>=0.18.0
-python-Levenshtein>=0.12.0
+# --- Markdown and document tools ---
+markdown
+fpdf
+openpyxl
 
-# === Markdown and document tools ===
-markdown>=3.4.0
-fpdf>=1.7.2
-openpyxl>=3.1.1
+# --- PDF, OCR, image processing ---
+pymupdf
+pdf2image
+pillow
+pytesseract
 
-# === PDF, OCR, image processing ===
-pymupdf>=1.23.1
-pdf2image>=1.16.3
-pillow>=10.3.0
-pytesseract>=0.3.10
-
-# === Web scraping & scrapers ===
-beautifulsoup4>=4.12.3
-selenium>=4.20.0
-yt-dlp>=2024.4.9
-youtube-search-python>=1.6.6
-huggingface_hub>=0.22.2
-
-# === AI/Large language models ===
-openai>=1.30.1
-
-# === Web frameworks helper ===
-python-multipart>=0.0.9
-
+# --- AI/Large language models ---
+openai
