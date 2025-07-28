@@ -25,6 +25,8 @@ MONGODB_URL = "mongodb+srv://ayushsinghbasera:YEJTg3zhMwXJcTXm@cluster0.fmzrdga.
 DB_NAME = "chatbot_db"
 COLLECTION_NAME = "chat_sessions"
 
+print("BOT STARTEDD")
+
 def save_company_website(user_id, chat_id, session_uuid, website):
     client = MongoClient(MONGODB_URL)
     db = client[DB_NAME]
