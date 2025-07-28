@@ -21,6 +21,7 @@ from back_end_llm import run_search_pipeline
 from supervisor import run_supervisor_pipeline
 from pdf_extract.brochure_extract import process_brochure
 
+
 # --- MONGODB DB INFO ---
 from pymongo import MongoClient
 MONGODB_URL = "mongodb+srv://ayushsinghbasera:YEJTg3zhMwXJcTXm@cluster0.fmzrdga.mongodb.net/"
@@ -29,7 +30,9 @@ COLLECTION_NAME = "chat_sessions"
 EXCEL_DB_NAME = "bot_excel_reports_db"
 EXCEL_COLLECTION_NAME = "bot_excel_reports"
 
+
 os.environ["TESSDATA_PREFIX"] = "/usr/local/share/tessdata/"
+
 
 # --- Robust Logging: Save all prints to both console and scraper.log ---
 logging.basicConfig(
@@ -40,13 +43,17 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ]
 )
+original_print = print  # <--- save the original print!
+
 def log(*args, **kwargs):
     msg = " ".join(str(a) for a in args)
-    print(msg, **kwargs)
+    original_print(msg, **kwargs)  # <--- use the original print!
     logging.info(msg)
+
 
 # Optional, if you want all legacy prints to go to both
 print = log
+
 
 def mark_user_completed(telegram_id):
     client = MongoClient(MONGODB_URL)
@@ -58,11 +65,13 @@ def mark_user_completed(telegram_id):
         upsert=True
     )
 
+
 def has_user_completed(telegram_id):
     client = MongoClient(MONGODB_URL)
     db = client[DB_NAME]
     col = db[COLLECTION_NAME]
     return col.find_one({"telegram_id": telegram_id, "completed": True}) is not None
+
 
 def save_company_website(user_id, chat_id, session_uuid, website):
     client = MongoClient(MONGODB_URL)
@@ -87,9 +96,12 @@ def save_company_website(user_id, chat_id, session_uuid, website):
         }
         col.insert_one(fallback_data)
 
+
 OPENAI_FIRST_QUESTION = "What is your product and what does it do?"
 
+
 user_sessions = {}
+
 
 def get_or_create_session(telegram_user_id: int):
     if has_user_completed(telegram_user_id):
@@ -107,17 +119,20 @@ def get_or_create_session(telegram_user_id: int):
         log(f"[NEW SESSION CREATED] Telegram ID: {telegram_user_id} | UserID: {user_sessions[telegram_user_id]['user_id']} | ChatID: {user_sessions[telegram_user_id]['chat_id']}")
     return user_sessions[telegram_user_id]
 
+
 def get_main_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🔁 Reset", callback_data="reset")],
         [InlineKeyboardButton("⛔ End Conversation", callback_data="end")],
     ])
 
+
 def get_yes_no_keyboard(prefix):
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("✅ Yes", callback_data=f"{prefix}_yes")],
         [InlineKeyboardButton("❌ No", callback_data=f"{prefix}_no")],
     ])
+
 
 def save_excel_to_db(telegram_id, user_id, session_uuid, chat_id, excel_path, filename='all_ranked_companies.xlsx'):
     # Will create the DB/collection if it does not exist (MongoDB default)
@@ -138,6 +153,7 @@ def save_excel_to_db(telegram_id, user_id, session_uuid, chat_id, excel_path, fi
     col.insert_one(record)
     logging.info(f"[DB] Excel file {filename} saved to DB for user {telegram_id}.")
 
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_user.id
     if has_user_completed(telegram_id):
@@ -150,6 +166,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_yes_no_keyboard("website")
     )
 
+
 async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -160,9 +177,11 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     log(f"[BUTTON CLICKED] {data} | State: {session['state']}")
 
+
     if data == "website_yes":
         session["state"] = "await_website_input"
         await query.edit_message_text("🌐 Please enter the company website URL.")
+
 
     elif data == "website_no":
         session["state"] = "await_brochure_prompt"
@@ -170,14 +189,17 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📎 Do you have a brochure (PDF)?", reply_markup=get_yes_no_keyboard("brochure")
         )
 
+
     elif data == "brochure_yes":
         session["state"] = "await_brochure_upload"
         await query.edit_message_text("📎 Please upload the brochure file now (PDF).")
+
 
     elif data == "brochure_no":
         session["state"] = "qa_flow"
         await query.edit_message_text("✅ Thanks! Let's begin.")
         await begin_qa_flow(update, session)
+
 
     elif data == "reset":
         old_chat_id = session["chat_id"]
@@ -187,12 +209,14 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         store_message(session["user_id"], session["chat_id"], OPENAI_FIRST_QUESTION, "", role="assistant")
         await query.edit_message_text("🔁 Conversation reset!\n\n" + OPENAI_FIRST_QUESTION, reply_markup=get_main_keyboard())
 
+
     elif data == "end":
         log(f"[END] Conversation ended by user {session['user_id']}")
         if not session.get("pipeline_triggered"):
             session["pipeline_triggered"] = True
             await query.edit_message_text("⛔ Conversation ended by user. Triggering the pipeline...")
             store_message(session["user_id"], session["chat_id"], "", "Conversation ended by user.", role="system")
+
 
             async def run_and_notify():
                 log(f"[PIPELINE] Triggering run_search_pipeline for user={session['user_id']} chat={session['chat_id']} session={session['session_uuid']}")
@@ -243,11 +267,13 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     )
             asyncio.create_task(run_and_notify())
 
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_input = update.message.text
     session = get_or_create_session(update.effective_user.id)
     user_id = session["user_id"]
     chat_id = session["chat_id"]
+
 
     if session["state"] == "await_website_input":
         session["website"] = user_input
@@ -261,12 +287,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         log(f"[WEBSITE SAVED] {user_input}")
         return
 
+
     if session["state"] == "qa_flow":
         store_message(user_id, chat_id, "", user_input, role="user")
         qa_log = get_qa_history(user_id, chat_id)
         history = build_history(qa_log)
         assistant_questions_count = len([m for m in qa_log if m["role"] == "assistant"])
         log(f"[MESSAGE] From {user_id} | State: {session['state']} | Text: {user_input}")
+
 
         # Robust end-of-QA detection
         next_question = generate_next_question(history, qa_log)
@@ -280,6 +308,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not session.get("pipeline_triggered"):
                 session["pipeline_triggered"] = True
                 await update.message.reply_text("✅ Thanks! Triggering the pipeline...")
+
 
                 async def run_and_notify():
                     log(f"[PIPELINE] Triggering run_search_pipeline for user={user_id} chat={chat_id} session={session['session_uuid']}")
@@ -332,7 +361,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(next_question, reply_markup=get_main_keyboard())
             return
 
+
     await update.message.reply_text("⚠️ Please follow the flow. Start with /start.")
+
 
 async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     session = get_or_create_session(update.effective_user.id)
@@ -341,6 +372,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tg_file = await file.get_file()
     await tg_file.download_to_drive(brochure_path)
     log(f"[BROCHURE RECEIVED] File saved to {brochure_path}")
+
 
     try:
         success, extracted_text = process_brochure(
@@ -355,6 +387,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             log("[BROCHURE ERROR] MongoDB update failed.")
             await update.message.reply_text("⚠️ Brochure processed but failed to update the database.")
+
 
         session["brochure_uploaded"] = True
         session["state"] = "qa_flow"
@@ -371,9 +404,11 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             os.remove(brochure_path)
         log(f"[CLEANUP] Temp file {brochure_path} removed.")
 
+
 async def begin_qa_flow(update: Update, session: dict):
     store_message(session["user_id"], session["chat_id"], OPENAI_FIRST_QUESTION, "", role="assistant")
     await update.effective_message.reply_text(OPENAI_FIRST_QUESTION, reply_markup=get_main_keyboard())
+
 
 def main():
     TOKEN = os.getenv("TELEGRAM_TOKEN")
@@ -386,6 +421,7 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_button))
     log("🤖 Telegram bot is running...")
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()
