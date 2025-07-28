@@ -1,0 +1,11 @@
+2025-07-27 11:41:17,559 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getMe "HTTP/1.1 200 OK"
+2025-07-27 11:41:17,724 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/deleteWebhook "HTTP/1.1 200 OK"
+2025-07-27 11:41:17,724 [INFO] Application started
+2025-07-27 11:41:19,641 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-27 11:41:19,995 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/sendMessage "HTTP/1.1 200 OK"
+2025-07-27 11:41:23,330 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-27 11:41:23,735 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/answerCallbackQuery "HTTP/1.1 200 OK"
+2025-07-27 11:41:24,080 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/editMessageText "HTTP/1.1 200 OK"
+2025-07-27 11:41:32,450 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-27 11:41:32,450 [INFO] Application is stopping. This might take a moment.
+2025-07-27 11:41:32,450 [INFO] Application.stop() complete

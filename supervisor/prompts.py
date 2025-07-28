@@ -8,7 +8,10 @@ You will receive:
 - A structured profile of the seller (optional, for context).
 - A profile of the lead company to evaluate.
 
-Be objective and cautious. Avoid assumptions where information is missing.
+Be objective and cautious. 
+
+Avoid assumptions where information is missing. In case there is no direct and clear information, do not fabricate details. Focus on the provided data.
+
 
 Your evaluation should consider:
 1. Relevance of the lead to the seller’s offering.
@@ -28,37 +31,114 @@ Use the **chat history** to understand the seller’s product, goals, and locati
 ---
 
 📜 **Chat History** (between seller and assistant/user):
+
 {chat_history}
 
 ---
 
 🏢 **Structured Seller Company Profile** (optional, for support):
+
 {buyer_profile}
 
 ---
 
 🏭 **Lead Company to Evaluate**:
+
 {company_info}
 
 ---
 
-Now evaluate the match based on product fit, business potential, and location.
+Use the following **rubric for scoring**. You must score using these exact categories and format:
 
-💡 **MUST infer the seller's operating location based on the conversation or profile. Give higher preference to lead companies that are **geographically closer** to the seller, unless strong relevance overrides distance.**
+Scoring Summary:
+- Signal Strength vs Decision Power
+- Source Context & Funnel Stage
+- Intent Velocity
+- Trigger-Linked Intent
+- ICP-Adjusted Scoring
+- Buying Committee Clustering
+- Intent Decay
+- Intent-Driven Outreach Personalization
+- Source Reliability Index
+- Competitive Intent Leakage
+
+Budget & Revenue Scores:
+- Budget Allocation Confidence
+- Revenue Model Type Fit
+- Cash Flow Cycle Fit
+- Funded vs Bootstrapped
+- Reinvestment Priority
+
+Decision Dynamics & Timing:
+- Contact Quality & Authority
+- Engagement Dynamics
+- Proof-Based Selling Potential
+- Department-Specific Fit
+- Integration Opportunity
+
+Geography & Outreach:
+- Region Fit (Gurugram)
+- Travel Fatigue/Accessibility Score
+- Customer Base Match Quality
+- Engagement History Score
+- Brand/PR Alignment
+
+Final Score Matrix Summary:
+- Category averages + Weighted mean
+
+---
+**IMPORTANT**: In case the product line for a target company is not clear, do not assign a score more than 1 to that company, even if all other parameters are favorable.
 
 Return ONLY valid JSON in this format:
 
 {{
-  "scoring_summary": "<markdown summary>",
-  "scores": {{
-    "relevance": {{"score": float, "justification": "<...>"}},
-    "business_potential": {{"score": float, "justification": "<...>"}},
-    "strategic_fit": {{"score": float, "justification": "<...>"}},
-    "location_proximity": {{"score": float, "justification": "<...>"}}
-  }},
-  "reasoning": "<string>",
-  "final_score": float
+"scoring_summary": "",
+"scores": {{
+    "Scoring Summary": {{
+        "Signal Strength vs Decision Power": float,
+        "Source Context & Funnel Stage": float,
+        "Intent Velocity": float,
+        "Trigger-Linked Intent": float,
+        "ICP-Adjusted Scoring": float,
+        "Buying Committee Clustering": float,
+        "Intent Decay": float,
+        "Intent-Driven Outreach Personalization": float,
+        "Source Reliability Index": float,
+        "Competitive Intent Leakage": float
+    }},
+    "Budget & Revenue Scores": {{
+        "Budget Allocation Confidence": float,
+        "Revenue Model Type Fit": float,
+        "Cash Flow Cycle Fit": float,
+        "Funded vs Bootstrapped": float,
+        "Reinvestment Priority": float
+    }},
+    "Decision Dynamics & Timing": {{
+        "Contact Quality & Authority": float,
+        "Engagement Dynamics": float,
+        "Proof-Based Selling Potential": float,
+        "Department-Specific Fit": float,
+        "Integration Opportunity": float
+    }},
+    "Geography & Outreach": {{
+        "Region Fit (Gurugram)": float,
+        "Travel Fatigue/Accessibility Score": float,
+        "Customer Base Match Quality": float,
+        "Engagement History Score": float,
+        "Brand/PR Alignment": float
+    }}
+}},
+"reasoning": "",
+"final_score_matrix_summary": {{
+    "category_averages": {{
+        "Scoring Summary": float,
+        "Budget & Revenue Scores": float,
+        "Decision Dynamics & Timing": float,
+        "Geography & Outreach": float
+    }},
+    "weighted_mean_final_score": float
 }}
-
+}}
 ⚠️ Do not hallucinate missing data. Infer gently but explain your reasoning clearly.
+---
 """
