@@ -109,8 +109,33 @@ class SupervisorAgent:
             with open("final_structured_output/failed_companies.json", "w", encoding="utf-8") as f:
                 json.dump(self.failed_companies, f, indent=2, ensure_ascii=False)
 
-        sorted_all = sorted(matches, key=lambda x: x.final_score, reverse=True)
+        # sorted_all = sorted(matches, key=lambda x: x.final_score, reverse=True)
 
+        # report = {
+        #     "ranked_companies": [
+        #         {
+        #             **match.dict(),
+        #             "address": self._get_company_field(match.company, "address"),
+        #             "phone": self._get_company_field(match.company, "phone", nested_key="national")
+        #         }
+        #         for match in sorted_all
+        #     ]
+        # }
+
+        # markdown = "# Ranked Companies (All)\n\n"
+        # for i, m in enumerate(sorted_all):
+        #     address = self._get_company_field(m.company, "address")
+        #     phone = self._get_company_field(m.company, "phone", nested_key="national")
+        #     markdown += (
+        #         f"## {i+1}. {m.company}\n"
+        #         f"- **Final Score**: {m.final_score:.1f}\n"
+        #         f"- **Reasoning**: {m.reasoning}\n"
+        #         f"- **Address**: {address}\n"
+        #         f"- **Phone**: {phone}\n\n"
+        #     )
+        
+        sorted_all = sorted(matches, key=lambda x: x.final_score, reverse=True)
+        top10 = sorted_all[:10]
         report = {
             "ranked_companies": [
                 {
@@ -118,12 +143,11 @@ class SupervisorAgent:
                     "address": self._get_company_field(match.company, "address"),
                     "phone": self._get_company_field(match.company, "phone", nested_key="national")
                 }
-                for match in sorted_all
+                for match in top10
             ]
         }
-
-        markdown = "# Ranked Companies (All)\n\n"
-        for i, m in enumerate(sorted_all):
+        markdown = "# Top 10 Ranked Companies to Contact\n\n"
+        for i, m in enumerate(top10):
             address = self._get_company_field(m.company, "address")
             phone = self._get_company_field(m.company, "phone", nested_key="national")
             markdown += (
@@ -133,6 +157,7 @@ class SupervisorAgent:
                 f"- **Address**: {address}\n"
                 f"- **Phone**: {phone}\n\n"
             )
+
 
         folder = "final_structured_output"
         os.makedirs(folder, exist_ok=True)
