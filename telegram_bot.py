@@ -1,5 +1,5 @@
 import os
-os.environ["TESSDATA_PREFIX"] = "/usr/local/share/"
+os.environ["TESSDATA_PREFIX"] = "/usr/local/share/tessdata/"
 
 import uuid
 import asyncio
