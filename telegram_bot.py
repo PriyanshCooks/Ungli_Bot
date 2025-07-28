@@ -1,4 +1,6 @@
 import os
+os.environ["TESSDATA_PREFIX"] = "/usr/local/share/"
+
 import uuid
 import asyncio
 import logging
