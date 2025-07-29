@@ -3,7 +3,7 @@ import sys
 import uuid
 import asyncio
 import logging
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -125,7 +125,7 @@ def get_or_create_session(telegram_user_id: int):
             telegram_id=telegram_user_id,
             log_type="bot_logs",
             event_data={
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "event": "session_created",
                 "message": "New user session created."
             }
@@ -189,7 +189,7 @@ def save_excel_to_db(telegram_id, user_id, session_uuid, chat_id, excel_path, fi
         telegram_id=telegram_id,
         log_type="bot_logs",
         event_data={
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "event": "excel_saved_to_db",
             "filename": filename,
             "message": "Excel rankings saved to DB"
@@ -211,7 +211,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         telegram_id=telegram_id,
         log_type="bot_logs",
         event_data={
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "event": "bot_start",
             "message": "User started the bot."
         }
@@ -240,7 +240,7 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         telegram_id=update.effective_user.id,
         log_type="bot_logs",
         event_data={
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "event": "button_clicked",
             "button": data,
             "state": session["state"],
@@ -301,7 +301,7 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             telegram_id=update.effective_user.id,
             log_type="bot_logs",
             event_data={
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "event": "conversation_end",
                 "message": "User ended the conversation."
             }
@@ -400,7 +400,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             telegram_id=update.effective_user.id,
             log_type="bot_logs",
             event_data={
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "event": "user_message",
                 "message": user_input,
                 "state": session["state"]
@@ -557,7 +557,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         telegram_id=update.effective_user.id,
         log_type="bot_logs",
         event_data={
-            "timestamp": datetime.now(UTC).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "event": "brochure_uploaded",
             "message": f"User uploaded brochure {file.file_name}"
         }
@@ -592,7 +592,7 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             telegram_id=update.effective_user.id,
             log_type="bot_logs",
             event_data={
-                "timestamp": datetime.now(UTC).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "event": "brochure_error",
                 "message": str(e)
             }

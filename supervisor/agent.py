@@ -16,7 +16,7 @@ from .utils import (
     call_perplexity,
     log_event_to_mongo
 )
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 
 load_dotenv()
 
@@ -85,7 +85,7 @@ class SupervisorAgent:
                     self.telegram_id,
                     "supervisor_logs",
                     {
-                        "timestamp": datetime.now(UTC).isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                         "event": "processing_company",
                         "company": company.get('name'),
                         "message": f"Supervisor processing company: {company.get('name')}"
@@ -125,7 +125,7 @@ class SupervisorAgent:
                         self.telegram_id,
                         "supervisor_logs",
                         {
-                            "timestamp": datetime.now(UTC).isoformat(),
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
                             "event": "company_processed",
                             "company": company.get('name'),
                             "final_score": match.final_score,
@@ -140,7 +140,7 @@ class SupervisorAgent:
                         self.telegram_id,
                         "supervisor_logs",
                         {
-                            "timestamp": datetime.now(UTC).isoformat(),
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
                             "event": "company_processed",
                             "company": company.get('name'),
                             "final_score": match.final_score,
@@ -155,7 +155,7 @@ class SupervisorAgent:
                         self.telegram_id,
                         "supervisor_logs",
                         {
-                            "timestamp": datetime.now(UTC).isoformat(),
+                            "timestamp": datetime.now(timezone.utc).isoformat(),
                             "event": "company_failed",
                             "company": company.get('name'),
                             "message": f"Supervisor failed to process company: {company.get('name')}, Error: {str(e)}"
@@ -171,7 +171,7 @@ class SupervisorAgent:
                 self.telegram_id,
                 "supervisor_logs",
                 {
-                    "timestamp": datetime.now(UTC).isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "event": "ranking_started",
                     "message": "Supervisor started company ranking."
                 }
@@ -188,7 +188,7 @@ class SupervisorAgent:
                     self.telegram_id,
                     "supervisor_logs",
                     {
-                        "timestamp": datetime.now(UTC).isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                         "event": "retry_failed_companies",
                         "count": len(self.failed_companies),
                         "message": f"Retrying {len(self.failed_companies)} failed companies."
@@ -205,7 +205,7 @@ class SupervisorAgent:
                     self.telegram_id,
                     "supervisor_logs",
                     {
-                        "timestamp": datetime.now(UTC).isoformat(),
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
                         "event": "failed_companies_saved",
                         "count": len(self.failed_companies),
                         "message": f"Saved failed companies to disk: {len(self.failed_companies)}"
@@ -250,7 +250,7 @@ class SupervisorAgent:
                 self.telegram_id,
                 "supervisor_logs",
                 {
-                    "timestamp": datetime.now(UTC).isoformat(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
                     "event": "ranking_completed",
                     "total_companies": len(self.companies),
                     "total_time_seconds": total_time,
