@@ -1,4 +1,4 @@
-# utils.py
+# supervisor/utils.py
 import openpyxl
 import logging
 import os
@@ -28,13 +28,12 @@ def fetch_company_profile(user_id: str, chat_id: str, session_uuid: str) -> Dict
         "company_website": chat_data.get("company_website", "")
     }
 
-
 def fetch_chat_as_conversationlog(user_id: str, chat_id: str, session_uuid: str) -> ConversationLog:
     client = get_mongo_client()
     db = client[os.getenv("READ_MONGO_DB")]
     collection = db[os.getenv("READ_MONGO_COLLECTION")]
     doc = collection.find_one({
-        "user_id": user_id,              # Changed from userId
+        "user_id": user_id,
         "session_uuid": session_uuid
     })
     if not doc:
@@ -79,7 +78,6 @@ async def call_perplexity(messages: List[Dict[str, str]]) -> str:
         "model": model,
         "messages": messages
     }
-
     async with httpx.AsyncClient(timeout=60) as client:
         response = await client.post("https://api.perplexity.ai/chat/completions", headers=headers, json=payload)
         response.raise_for_status()
@@ -90,7 +88,7 @@ def fetch_companies_from_applications(user_id: str, chat_id: str, session_uuid: 
     db = client[os.getenv("WRITE_MONGO_DB_NAME")]
     collection = db[os.getenv("WRITE_MONGO_COLLECTION_NAME")]
     doc = collection.find_one({
-        "user_id": user_id,             # Changed from userId
+        "user_id": user_id,
         "session_uuid": session_uuid,
         f"chats.{chat_id}": {"$exists": True}
     })
@@ -104,23 +102,6 @@ def fetch_companies_from_applications(user_id: str, chat_id: str, session_uuid: 
     logging.info(f"✅ Retrieved {len(companies)} companies from DB")
     return companies
 
-# def markdown_to_pdf(md_path, pdf_path):
-#     import markdown
-#     from fpdf import FPDF
-
-#     with open(md_path, "r", encoding="utf-8") as md_file:
-#         html = markdown.markdown(md_file.read())
-
-#     pdf = FPDF()
-#     pdf.add_page()
-#     pdf.set_auto_page_break(auto=True, margin=15)
-#     pdf.set_font("Arial", size=12)
-#     for line in html.splitlines():
-#         # Strip HTML tags simply; for richer, use weasyprint or similar
-#         text = line.replace('<p>', '').replace('</p>', '')
-#         pdf.multi_cell(0, 10, text)
-#     pdf.output(pdf_path)
-    
 def ranked_companies_to_excel(md_path, xlsx_path):
     with open(md_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
@@ -133,8 +114,7 @@ def ranked_companies_to_excel(md_path, xlsx_path):
         line = line.strip()
         if line.startswith("## "):  # Company header
             if current:
-                ws.append([current.get('Rank'), current.get('Company'), current.get('Score'),
-                           current.get('Reasoning'), current.get('Address'), current.get('Phone')])
+                ws.append([current.get('Rank'), current.get('Company'), current.get('Score'), current.get('Reasoning'), current.get('Address'), current.get('Phone')])
             rank += 1
             current = {'Rank': rank, 'Company': line[3:]}
         elif line.startswith("- **Final Score**:"):
@@ -146,6 +126,30 @@ def ranked_companies_to_excel(md_path, xlsx_path):
         elif line.startswith("- **Phone**:"):
             current['Phone'] = line.split(": ", 1)[1]
     if current:
-        ws.append([current.get('Rank'), current.get('Company'), current.get('Score'),
-                   current.get('Reasoning'), current.get('Address'), current.get('Phone')])
+        ws.append([current.get('Rank'), current.get('Company'), current.get('Score'), current.get('Reasoning'), current.get('Address'), current.get('Phone')])
     wb.save(xlsx_path)
+
+# -------- MONGODB SUPERVISOR/BOT LOGGING UTILITY --------
+
+from datetime import datetime
+
+SUPERVISOR_LOG_MONGODB_URL = "mongodb+srv://ayushsinghbasera:YEJTg3zhMwXJcTXm@cluster0.fmzrdga.mongodb.net/"
+SUPERVISOR_LOG_DB = "chatbot_db"
+SUPERVISOR_LOG_COLLECTION = "bot_logs"
+
+def get_botlogs_collection():
+    client = MongoClient(SUPERVISOR_LOG_MONGODB_URL)
+    db = client[SUPERVISOR_LOG_DB]
+    return db[SUPERVISOR_LOG_COLLECTION]
+
+def log_event_to_mongo(telegram_id, log_type, event_data):
+    """
+    log_type: 'bot_logs' or 'supervisor_logs'
+    event_data: dict ('timestamp' and 'message' recommended)
+    """
+    col = get_botlogs_collection()
+    col.update_one(
+        {'telegram_id': telegram_id},
+        {'$push': {log_type: event_data}},
+        upsert=True
+    )
