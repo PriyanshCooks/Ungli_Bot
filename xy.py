@@ -21,39 +21,54 @@ def load_all_companies(folder):
     for file_path in get_json_files(folder):
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            # Adapt as needed: are your results in a root list or key?
-            if isinstance(data, dict) and "ranked_companies" in data:
-                all_companies.extend(data["ranked_companies"])
+            # Assuming each JSON is a single company dictionary
+            if isinstance(data, dict):
+                all_companies.append(data)
             elif isinstance(data, list):
+                # Just in case some file has a list of companies
                 all_companies.extend(data)
             else:
-                all_companies.append(data)
+                print(f"Warning: Unexpected data format in file {file_path}")
     return all_companies
 
 def main(json_folder):
-    # 1. Load and aggregate all company records
+    # 1. Load all companies
     companies = load_all_companies(json_folder)
 
-    # 2. Sort all companies by final_score descending
-    sorted_companies = sorted(companies, key=lambda x: x['final_score'], reverse=True)
+    print(f"Loaded {len(companies)} companies from JSON files.")
 
-    # 3. Export to MongoDB
+    # 2. Filter out entries missing 'final_score' and warn about them
+    companies_with_score = []
+    missing_score_count = 0
+    for c in companies:
+        if 'final_score' in c:
+            companies_with_score.append(c)
+        else:
+            missing_score_count += 1
+            print(f"Warning: Company entry missing 'final_score', skipping: {c.get('company', '<unknown>')}")
+
+    print(f"Companies with 'final_score': {len(companies_with_score)}")
+    print(f"Companies skipped due to missing 'final_score': {missing_score_count}")
+
+    # 3. Sort by 'final_score' descending
+    sorted_companies = sorted(companies_with_score, key=lambda x: x['final_score'], reverse=True)
+
+    # 4. Export to MongoDB
     client = pymongo.MongoClient(MONGODB_URL)
     db = client[DB_NAME]
     collection = db[COLLECTION_NAME]
 
-    # Optionally, remove existing documents (take care with production!)
+    # Optional: clear previous data for a clean insert (use with caution)
     # collection.delete_many({})
 
-    # 4. Insert all sorted companies as a single document, or individually
+    # 5. Insert one document with all ranked companies
     collection.insert_one({
         "ranked_companies": sorted_companies,
         "total_companies": len(sorted_companies)
     })
 
-    print(f"Inserted {len(sorted_companies)} companies to MongoDB.")
+    print(f"Inserted {len(sorted_companies)} companies into MongoDB.")
 
 if __name__ == "__main__":
-    # Set folder path to where your JSON files are
     FOLDER = "/home/ec2-user/Ungli_Bot/final_structured_output"
     main(FOLDER)
