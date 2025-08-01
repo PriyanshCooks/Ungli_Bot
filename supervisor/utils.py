@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from typing import Dict, Any, List
 from pymongo import MongoClient
 from .pydantic_model import ConversationLog, ExtractedData, ConversationEntry
+import tiktoken
 
 load_dotenv()
 
@@ -67,6 +68,57 @@ def save_output_locally(data_obj, folder="final_structured_output"):
     path = os.path.join(folder, f"{sanitize_filename(data_obj.company.lower())}.json")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data_obj.dict(), f, indent=2, ensure_ascii=False)
+
+def count_tokens(messages, model="gpt-3.5-turbo"):
+    # Use fallback encoding "cl100k_base" for unknown models like sonar-pro
+    if model in ["sonar-pro", "sonar-small", "sonar-medium"]:
+        enc = tiktoken.get_encoding("cl100k_base")
+    else:
+        try:
+            enc = tiktoken.encoding_for_model(model)
+        except KeyError:
+            enc = tiktoken.get_encoding("cl100k_base")
+    text = ""
+    for m in messages:
+        text += m["content"] + " "
+    return len(enc.encode(text))
+
+async def call_perplexity(messages: List[Dict[str, str]]) -> tuple:
+    headers = {
+        "Authorization": f"Bearer {os.getenv('PERPLEXITY_API_KEY')}",
+        "Content-Type": "application/json"
+    }
+    model = os.getenv("PERPLEXITY_MODEL", "sonar-pro")
+    payload = {"model": model, "messages": messages}
+    input_tokens = count_tokens(messages, model)
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.post("https://api.perplexity.ai/chat/completions", headers=headers, json=payload)
+        response.raise_for_status()
+        output = response.json()["choices"][0]["message"]["content"]
+        # Estimate output tokens using same fallback logic as input tokens
+        if model in ["sonar-pro", "sonar-small", "sonar-medium"]:
+            enc = tiktoken.get_encoding("cl100k_base")
+        else:
+            try:
+                enc = tiktoken.encoding_for_model(model)
+            except KeyError:
+                enc = tiktoken.get_encoding("cl100k_base")
+        output_tokens = len(enc.encode(output))
+        return output, input_tokens, output_tokens
+
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.post("https://api.perplexity.ai/chat/completions", headers=headers, json=payload)
+        response.raise_for_status()
+        output = response.json()["choices"][0]["message"]["content"]
+
+        try:
+            enc = tiktoken.encoding_for_model(model)
+        except KeyError:
+            enc = tiktoken.get_encoding("cl100k_base")
+        output_tokens = len(enc.encode(output))
+
+        return output, input_tokens, output_tokens
 
 async def call_perplexity(messages: List[Dict[str, str]]) -> str:
     headers = {

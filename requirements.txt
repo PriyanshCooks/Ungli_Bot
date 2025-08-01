@@ -40,3 +40,4 @@ pytesseract
 # --- AI/Large language models ---
 openai
 asyncio
+tiktoken
