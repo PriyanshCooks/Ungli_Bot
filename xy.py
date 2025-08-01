@@ -4,11 +4,12 @@ import pymongo
 
 # MongoDB connection config
 MONGODB_URL = "mongodb+srv://ayushsinghbasera:YEJTg3zhMwXJcTXm@cluster0.fmzrdga.mongodb.net/"
-DB_NAME = "chatbot_db"
-COLLECTION_NAME = "chat_sessions"
+
+# Use the requested Excel DB and Collection
+EXCEL_DB_NAME = "bot_excel_reports_db"
+EXCEL_COLLECTION_NAME = "bot_excel_reports"
 
 def get_json_files(folder):
-    """Get all JSON file paths in the folder."""
     return [
         os.path.join(folder, f)
         for f in os.listdir(folder)
@@ -16,58 +17,52 @@ def get_json_files(folder):
     ]
 
 def load_all_companies(folder):
-    """Load all company objects from all JSON files."""
     all_companies = []
     for file_path in get_json_files(folder):
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            # Assuming each JSON is a single company dictionary
             if isinstance(data, dict):
                 all_companies.append(data)
             elif isinstance(data, list):
-                # Just in case some file has a list of companies
                 all_companies.extend(data)
             else:
-                print(f"Warning: Unexpected data format in file {file_path}")
+                print(f"Warning: Unexpected data format in {file_path}")
     return all_companies
 
 def main(json_folder):
-    # 1. Load all companies
     companies = load_all_companies(json_folder)
+    companies_with_score = [c for c in companies if 'final_score' in c]
 
-    print(f"Loaded {len(companies)} companies from JSON files.")
-
-    # 2. Filter out entries missing 'final_score' and warn about them
-    companies_with_score = []
-    missing_score_count = 0
-    for c in companies:
-        if 'final_score' in c:
-            companies_with_score.append(c)
-        else:
-            missing_score_count += 1
-            print(f"Warning: Company entry missing 'final_score', skipping: {c.get('company', '<unknown>')}")
-
-    print(f"Companies with 'final_score': {len(companies_with_score)}")
-    print(f"Companies skipped due to missing 'final_score': {missing_score_count}")
-
-    # 3. Sort by 'final_score' descending
+    # Sort descending by final_score
     sorted_companies = sorted(companies_with_score, key=lambda x: x['final_score'], reverse=True)
 
-    # 4. Export to MongoDB
+    # Connect to MongoDB Excel DB and collection
     client = pymongo.MongoClient(MONGODB_URL)
-    db = client[DB_NAME]
-    collection = db[COLLECTION_NAME]
+    db = client[EXCEL_DB_NAME]
+    collection = db[EXCEL_COLLECTION_NAME]
 
-    # Optional: clear previous data for a clean insert (use with caution)
+    # Optionally clear previous records (careful in prod)
     # collection.delete_many({})
 
-    # 5. Insert one document with all ranked companies
-    collection.insert_one({
-        "ranked_companies": sorted_companies,
-        "total_companies": len(sorted_companies)
-    })
+    # Prepare documents for insertion with rank field and flatten keys
+    docs = []
+    for idx, comp in enumerate(sorted_companies, 1):
+        doc = {
+            "rank": idx,
+            "company": comp.get("company"),
+            "final_score": comp.get("final_score"),
+            "reasoning": comp.get("reasoning"),
+            "address": comp.get("address"),
+            "phone": comp.get("phone"),
+            # If those fields are nested or in scoring_summary, flatten as needed
+            # For example, merge scoring_summary or others here if needed
+        }
+        docs.append(doc)
 
-    print(f"Inserted {len(sorted_companies)} companies into MongoDB.")
+    # Insert all documents individually (preferred for Excel export)
+    collection.insert_many(docs)
+
+    print(f"Inserted {len(docs)} company reports into {EXCEL_DB_NAME}.{EXCEL_COLLECTION_NAME}")
 
 if __name__ == "__main__":
     FOLDER = "/home/ec2-user/Ungli_Bot/final_structured_output"
