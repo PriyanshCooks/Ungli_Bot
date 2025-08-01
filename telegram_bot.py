@@ -392,9 +392,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         user_input = update.message.text
         session = get_or_create_session(update.effective_user.id)
+        if session is None:
+            await update.message.reply_text("⚠️ You have already completed your session! Only one run is allowed per user.")
+            return
+
         user_id = session["user_id"]
         chat_id = session["chat_id"]
-
 
         log_event_to_mongo(
             telegram_id=update.effective_user.id,
@@ -406,7 +409,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "state": session["state"]
             }
         )
-
 
         if session["state"] == "await_website_input":
             session["website"] = user_input
@@ -420,123 +422,62 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             log(f"[WEBSITE SAVED] {user_input}")
             return
 
-
         if session["state"] == "qa_flow":
             store_message(user_id, chat_id, "", user_input, role="user")
+
             qa_log = get_qa_history(user_id, chat_id)
             history = build_history(qa_log)
             assistant_questions_count = len([m for m in qa_log if m["role"] == "assistant"])
-            log(f"[MESSAGE] From {user_id} | State: {session['state']} | Text: {user_input} | assistant_questions_count={assistant_questions_count}")
 
+            log(f"[MESSAGE] From {user_id} | State: {session['state']} | Text: {user_input} | assistant_questions_count={assistant_questions_count}")
 
             if assistant_questions_count == 0:
                 store_message(user_id, chat_id, OPENAI_FIRST_QUESTION, "", role="assistant")
                 await update.message.reply_text(OPENAI_FIRST_QUESTION, reply_markup=get_main_keyboard())
                 return
 
-
             next_question = generate_next_question(history, qa_log)
             if not next_question or not next_question.strip():
                 next_question = "Can you tell me more details about your product, customers, market or applications?"
 
-
-            end_signals = [
+            ENDING_SIGNALS = [
                 "thank you", "thanks", "all the questions", "that's all", "thank you for providing",
                 "have a great day", "conversation ended",
             ]
-            nq_lower = next_question.lower().strip()
 
-
-            if (any(signal in nq_lower for signal in end_signals) and assistant_questions_count > 1) or assistant_questions_count >= 15:
-                log(f"[QA COMPLETE] User {user_id} finished Q&A. Triggering pipeline for session={session['session_uuid']} chat={chat_id}")
-                if not session.get("pipeline_triggered"):
-                    session["pipeline_triggered"] = True
-                    await update.message.reply_text("✅ Thanks! Triggering the pipeline...")
-
-
-                    async def run_and_notify():
-                        try:
-                            # ---- SANITY CHECK BEFORE PIPELINE ----
-                            client = MongoClient(MONGODB_URL)
-                            col = client[DB_NAME][COLLECTION_NAME]
-                            exists = col.find_one({
-                                "user_id": session["user_id"],
-                                "session_uuid": session["session_uuid"],
-                                f"chats.{session['chat_id']}": {"$exists": True}
-                            })
-                            if not exists:
-                                log(f"[ERROR] No valid session/chat in Mongo for user={session['user_id']} session={session['session_uuid']} chat={session['chat_id']}")
-                                await context.bot.send_message(
-                                    chat_id=update.message.chat_id,
-                                    text="⚠️ Internal error: No valid session history found. Please /start over."
-                                )
-                                return
-
-
-                            log(f"[PIPELINE] Triggering run_search_pipeline for user={user_id} chat={chat_id} session={session['session_uuid']}")
-                            await asyncio.to_thread(
-                                run_search_pipeline,
-                                user_id=user_id, chat_id=chat_id, session_uuid=session["session_uuid"]
-                            )
-                            log(f"[PIPELINE] Pipeline ended for user={user_id}")
-
-
-                            await context.bot.send_message(
-                                chat_id=update.message.chat_id,
-                                text="✅ Pipeline ended. Running company ranking..."
-                            )
-                            try:
-                                xlsx_path = await run_supervisor_pipeline(
-                                    user_id=session["user_id"],
-                                    chat_id=session["chat_id"],
-                                    session_uuid=session["session_uuid"],
-                                    telegram_id=update.effective_user.id
-                                )
-                                if xlsx_path and os.path.exists(xlsx_path):
-                                    save_excel_to_db(
-                                        telegram_id=update.effective_user.id,
-                                        user_id=session["user_id"],
-                                        session_uuid=session["session_uuid"],
-                                        chat_id=session["chat_id"],
-                                        excel_path=xlsx_path,
-                                        filename="all_ranked_companies.xlsx"
-                                    )
-                                    await context.bot.send_document(
-                                        chat_id=update.message.chat_id,
-                                        document=open(xlsx_path, "rb"),
-                                        filename="all_ranked_companies.xlsx",
-                                        caption="🏆 Here are your ranked companies as an Excel sheet."
-                                    )
-                                    log("[SUPERVISOR] Ranking complete and Excel sent to user.")
-                                    mark_user_completed(update.effective_user.id)
-                                else:
-                                    await context.bot.send_message(
-                                        chat_id=update.message.chat_id,
-                                        text="⚠️ Ranking completed but Excel file was not found."
-                                    )
-                                    log("[SUPERVISOR] No Excel file to send.")
-                            except Exception as e:
-                                log(f"[SUPERVISOR ERROR] {e}")
-                                await context.bot.send_message(
-                                    chat_id=update.message.chat_id,
-                                    text="Sorry, we encountered an error. Please try again later."
-                                )
-                        except Exception as ex:
-                            log(f"[BOT ERROR] {ex}")
-                            await context.bot.send_message(
-                                chat_id=update.message.chat_id,
-                                text="Sorry, we encountered an error. Please try again later."
-                            )
-                    asyncio.create_task(run_and_notify())
-                return
-            else:
+            # If fewer than 10 questions asked, always continue asking
+            if assistant_questions_count < 10:
                 store_message(user_id, chat_id, next_question, "", role="assistant")
                 await update.message.reply_text(next_question, reply_markup=get_main_keyboard())
                 return
 
+            # After 10 questions, check if next question contains any ending signal,
+            # Bot determines if info is likely sufficient to end conversation early
+            elif 10 <= assistant_questions_count < 15:
+                nq_lower = next_question.lower().strip()
+                if any(signal in nq_lower for signal in ENDING_SIGNALS):
+                    await update.message.reply_text(
+                        "Based on your responses, it seems I have enough information. If you'd like to stop, please press the 'End Conversation' button. Otherwise, you can keep providing more details.",
+                        reply_markup=get_main_keyboard()
+                    )
+                    return
+                else:
+                    store_message(user_id, chat_id, next_question, "", role="assistant")
+                    await update.message.reply_text(next_question, reply_markup=get_main_keyboard())
+                    return
+
+            # After 15 questions, force end of bot asking (user can still end anytime via button)
+            elif assistant_questions_count >= 15:
+                await update.message.reply_text(
+                    "I've asked the maximum number of questions (15). Please press the 'End Conversation' button if you'd like to finish, or you can restart the conversation.",
+                    reply_markup=get_main_keyboard()
+                )
+                # Optionally, update session state to stop further bot questions:
+                session["state"] = "completed"
+                mark_user_completed(update.effective_user.id)
+                return
 
         await update.message.reply_text("⚠️ Please follow the flow. Start with /start.")
-
 
     except Exception as e:
         log(f"[BOT ERROR] {e}")
