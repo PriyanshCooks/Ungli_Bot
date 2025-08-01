@@ -1,0 +1,54 @@
+2025-07-29 16:28:14,486 [INFO] \U0001f916 Telegram bot is running...
+2025-07-29 16:28:15,211 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getMe "HTTP/1.1 200 OK"
+2025-07-29 16:28:15,384 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/deleteWebhook "HTTP/1.1 200 OK"
+2025-07-29 16:28:15,385 [INFO] Application started
+2025-07-29 16:28:25,898 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 16:28:30,318 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 16:28:31,259 [INFO] [NEW SESSION CREATED] Telegram ID: 1662855835 | UserID: c9cc9207-2613-4120-9df9-b31220937245 | ChatID: 3a802639-ead9-4940-89d9-c9328794866f
+2025-07-29 16:28:33,511 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/sendMessage "HTTP/1.1 200 OK"
+2025-07-29 16:28:42,986 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 16:28:50,424 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 16:28:51,107 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/answerCallbackQuery "HTTP/1.1 200 OK"
+2025-07-29 16:28:51,642 [INFO] [BUTTON CLICKED] website_no | State: await_website_prompt
+2025-07-29 16:28:52,724 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/editMessageText "HTTP/1.1 200 OK"
+2025-07-29 16:28:53,972 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 16:28:54,315 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/answerCallbackQuery "HTTP/1.1 200 OK"
+2025-07-29 16:28:55,799 [INFO] [BUTTON CLICKED] brochure_no | State: await_brochure_prompt
+2025-07-29 16:28:56,650 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/editMessageText "HTTP/1.1 200 OK"
+2025-07-29 16:28:57,294 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/sendMessage "HTTP/1.1 200 OK"
+2025-07-29 16:28:59,088 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 16:29:00,470 [INFO] [MESSAGE] From c9cc9207-2613-4120-9df9-b31220937245 | State: qa_flow | Text: it is a ClearPlus 040 is a specially modified polymer based additive | assistant_questions_count=1
+2025-07-29 16:29:02,411 [INFO] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-29 16:29:03,201 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/sendMessage "HTTP/1.1 200 OK"
+2025-07-29 16:29:05,994 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 16:29:07,009 [INFO] [MESSAGE] From c9cc9207-2613-4120-9df9-b31220937245 | State: qa_flow | Text: it is designed for increasing  the strength and transparency of Virgin Plastic Packaging materials. | assistant_questions_count=2
+2025-07-29 16:29:08,399 [INFO] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-29 16:29:10,168 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/sendMessage "HTTP/1.1 200 OK"
+2025-07-29 16:29:18,650 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 16:29:28,824 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 16:29:31,020 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 16:29:31,728 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/answerCallbackQuery "HTTP/1.1 200 OK"
+2025-07-29 16:29:32,214 [INFO] [BUTTON CLICKED] end | State: qa_flow
+2025-07-29 16:29:32,656 [INFO] [END] Conversation ended by user c9cc9207-2613-4120-9df9-b31220937245
+2025-07-29 16:29:33,456 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/editMessageText "HTTP/1.1 200 OK"
+2025-07-29 16:29:33,978 [INFO] [PIPELINE] Triggering run_search_pipeline for user=c9cc9207-2613-4120-9df9-b31220937245 chat=3a802639-ead9-4940-89d9-c9328794866f session=19d95d5a-7b42-4a10-9367-44a41a422e6c
+2025-07-29 16:29:33,978 [INFO] Running pipeline with user_id=c9cc9207-2613-4120-9df9-b31220937245, chat_id=3a802639-ead9-4940-89d9-c9328794866f, session_uuid=19d95d5a-7b42-4a10-9367-44a41a422e6c
+2025-07-29 16:29:34,030 [INFO] MongoDB query: {'session_uuid': '19d95d5a-7b42-4a10-9367-44a41a422e6c', 'user_id': 'c9cc9207-2613-4120-9df9-b31220937245'}
+2025-07-29 16:29:34,825 [INFO] Raw session fetch result: {'_id': ObjectId('6888a95a1d052f6f69f25360'), 'session_uuid': '19d95d5a-7b42-4a10-9367-44a41a422e6c', 'user_id': 'c9cc9207-2613-4120-9df9-b31220937245', 'chats': {'3a802639-ead9-4940-89d9-c9328794866f': {'messages': [{'question': 'What is your product and what does it do?', 'answer': '', 'role': 'assistant', 'timestamp': datetime.datetime(2025, 7, 29, 10, 58, 56, 650000)}, {'question': '', 'answer': 'it is a ClearPlus 040 is a specially modified polymer based additive', 'role': 'user', 'timestamp': datetime.datetime(2025, 7, 29, 10, 59, 0, 370000)}, {'question': 'Interesting! Could you tell me more about what problem the ClearPlus 040 solves and which industries or use-cases it serves?', 'answer': '', 'role': 'assistant', 'timestamp': datetime.datetime(2025, 7, 29, 10, 59, 2, 423000)}, {'question': '', 'answer': 'it is designed for increasing  the strength and transparency of Virgin Plastic Packaging materials.', 'role': 'user', 'timestamp': datetime.datetime(2025, 7, 29, 10, 59, 6, 907000)}, {'question': 'Great, that sounds valuable for the packaging industry. What are some key features or technical specifications of the ClearPlus 040?', 'answer': '', 'role': 'assistant', 'timestamp': datetime.datetime(2025, 7, 29, 10, 59, 8, 403000)}, {'question': '', 'answer': 'Conversation ended by user.', 'role': 'system', 'timestamp': datetime.datetime(2025, 7, 29, 10, 59, 33, 456000)}]}}}
+2025-07-29 16:29:34,825 [INFO] \u2705 Session fetched from MongoDB.
+2025-07-29 16:29:34,825 [WARNING] \u274c No brochure (company_profile) found inside chats or it's empty/whitespace.
+2025-07-29 16:29:34,825 [INFO] No brochure (company_profile) found for this session.
+2025-07-29 16:29:37,180 [INFO] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-29 16:29:37,943 [INFO] HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-29 16:29:38,720 [INFO] Chat data inserted under chat ID '3a802639-ead9-4940-89d9-c9328794866f' in MongoDB.
+2025-07-29 16:29:38,720 [INFO] [PIPELINE] Pipeline ended for user=c9cc9207-2613-4120-9df9-b31220937245
+2025-07-29 16:29:39,439 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/sendMessage "HTTP/1.1 200 OK"
+2025-07-29 16:29:40,626 [INFO] \u2705 Retrieved 0 companies from DB
+2025-07-29 16:29:40,626 [INFO] [SUPERVISOR ERROR] Missing data for ranking.
+2025-07-29 16:29:40,993 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/sendMessage "HTTP/1.1 200 OK"
+2025-07-29 16:29:41,191 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 16:29:51,367 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 16:30:01,536 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 16:30:10,355 [INFO] HTTP Request: POST https://api.telegram.org/bot7644499754:AAFVwGgXO63AFirg5d4iFGzNZn0uZ-1OW5M/getUpdates "HTTP/1.1 200 OK"
+2025-07-29 16:30:10,356 [INFO] Application is stopping. This might take a moment.
+2025-07-29 16:30:10,356 [INFO] Application.stop() complete

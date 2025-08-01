@@ -5,7 +5,7 @@ import json
 import logging
 from typing import List, Dict, Any
 from dotenv import load_dotenv
-
+import asyncio
 from .pydantic_model import ConversationLog, CompanyMatchOutput, ExtractedData
 from .prompts import SYSTEM_PROMPT, EVALUATION_PROMPT_TEMPLATE
 from .utils import (
@@ -19,6 +19,8 @@ from .utils import (
 from datetime import datetime, timezone
 
 load_dotenv()
+
+PERPLEXITY_COST_PER_1K_TOKENS = 0.01  # update if needed
 
 class SupervisorAgent:
     def __init__(
@@ -40,6 +42,8 @@ class SupervisorAgent:
         self.company_profile = fetch_company_profile(user_id, chat_id, session_uuid)
         self.failed_companies: List[Dict[str, Any]] = []
         self.telegram_id = telegram_id
+        self.total_input_tokens = 0         # <-- ADDED
+        self.total_output_tokens = 0        # <-- ADDED
 
     def _construct_perplexity_prompt(self, company: Dict[str, Any]) -> List[Dict[str, str]]:
         profile = self.company_profile.get("company_profile", "")
@@ -93,7 +97,10 @@ class SupervisorAgent:
                 )
             try:
                 messages = self._construct_perplexity_prompt(company)
-                raw = await call_perplexity(messages)
+                # Expect tuple: (raw, input_tokens, output_tokens)
+                raw, input_tokens, output_tokens = await call_perplexity(messages)
+                self.total_input_tokens += input_tokens       # <-- ADDED
+                self.total_output_tokens += output_tokens     # <-- ADDED
                 # Clean raw: remove code fences and 'json' word if exists
                 raw = raw.strip().lstrip("`").rstrip("`")
                 if raw.lower().startswith("json"):
@@ -147,6 +154,7 @@ class SupervisorAgent:
                             "message": f"Company {company.get('name')} processed with score {match.final_score}"
                         }
                     )
+                await asyncio.sleep(1)
             except Exception as e:
                 logging.exception(f"❌ Failed for {company.get('name')}: {e}")
                 self.failed_companies.append(company)
@@ -222,7 +230,13 @@ class SupervisorAgent:
                     "phone": self._get_company_field(match.company, "phone", nested_key="national")
                 }
                 for match in top10
-            ]
+            ],
+            "token_usage": {   # <-- ADDED
+                "input_tokens": self.total_input_tokens,
+                "output_tokens": self.total_output_tokens,
+                "total_tokens": self.total_input_tokens + self.total_output_tokens,
+                "estimated_cost_usd": round((self.total_input_tokens + self.total_output_tokens) / 1000 * PERPLEXITY_COST_PER_1K_TOKENS, 6)
+            }
         }
         markdown = "# Top 10 Ranked Companies to Contact\n\n"
         for i, m in enumerate(top10):
@@ -235,6 +249,13 @@ class SupervisorAgent:
                 f"- **Address**: {address}\n"
                 f"- **Phone**: {phone}\n\n"
             )
+        markdown += (
+            "---\n"
+            f"**Total Input Tokens:** {self.total_input_tokens}\n\n"
+            f"**Total Output Tokens:** {self.total_output_tokens}\n\n"
+            f"**Total Tokens:** {self.total_input_tokens + self.total_output_tokens}\n\n"
+            f"**Estimated Cost:** ${report['token_usage']['estimated_cost_usd']}\n"
+        )
         folder = "final_structured_output"
         os.makedirs(folder, exist_ok=True)
         with open(os.path.join(folder, "all_ranked_companies.md"), "w", encoding="utf-8") as f:
@@ -245,6 +266,7 @@ class SupervisorAgent:
         )
         total_time = time.time() - start_time
         logging.info(f"⏱️ Total processing time: {total_time:.2f} seconds")
+        logging.info(f"Token/cost stats: input={self.total_input_tokens}, output={self.total_output_tokens}, cost=${report['token_usage']['estimated_cost_usd']}")
         if self.telegram_id:
             log_event_to_mongo(
                 self.telegram_id,
