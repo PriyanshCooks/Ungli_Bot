@@ -120,21 +120,6 @@ async def call_perplexity(messages: List[Dict[str, str]]) -> tuple:
 
         return output, input_tokens, output_tokens
 
-async def call_perplexity(messages: List[Dict[str, str]]) -> str:
-    headers = {
-        "Authorization": f"Bearer {os.getenv('PERPLEXITY_API_KEY')}",
-        "Content-Type": "application/json"
-    }
-    model = os.getenv("PERPLEXITY_MODEL", "sonar-pro")
-    payload = {
-        "model": model,
-        "messages": messages
-    }
-    async with httpx.AsyncClient(timeout=60) as client:
-        response = await client.post("https://api.perplexity.ai/chat/completions", headers=headers, json=payload)
-        response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"]
-
 def fetch_companies_from_applications(user_id: str, chat_id: str, session_uuid: str) -> List[Dict[str, Any]]:
     client = get_mongo_client()
     db = client[os.getenv("WRITE_MONGO_DB_NAME")]
