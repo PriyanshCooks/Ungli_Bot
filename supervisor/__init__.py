@@ -1,3 +1,4 @@
+#__init__.py
 import asyncio
 import os
 from .agent import SupervisorAgent
@@ -29,11 +30,5 @@ async def run_supervisor_pipeline(user_id, chat_id, session_uuid, batch_size=5, 
         batch_size=batch_size,
         telegram_id=telegram_id
     )
-    await agent.select_top_companies()
-    folder = "final_structured_output"
-    md_path = os.path.join(folder, "all_ranked_companies.md")
-    xlsx_path = os.path.join(folder, "all_ranked_companies.xlsx")
-    if os.path.exists(md_path):
-        ranked_companies_to_excel(md_path, xlsx_path)
-        return xlsx_path
-    return None
+    report = await agent.select_top_companies()
+    return report
