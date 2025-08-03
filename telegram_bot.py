@@ -370,7 +370,7 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                         chat_id=query.message.chat_id,
                                         document=top10_file,
                                         filename="top_10_ranked_companies.xlsx",
-                                        caption="🏆 Here are the top 10 ranked companies as an Excel sheet."
+                                        caption="🏆 Here are the top 10 ranked companies as an Excel sheet. To unlock the complete list of leads, contact: 8800793038"
                                     )
                             else:
                                 await context.bot.send_message(
