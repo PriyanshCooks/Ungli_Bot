@@ -342,33 +342,47 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         text="✅ Pipeline ended. Running company ranking..."
                     )
                     try:
-                        xlsx_path = await run_supervisor_pipeline(
+                        xlsx_report = await run_supervisor_pipeline(
                             user_id=session["user_id"],
                             chat_id=session["chat_id"],
                             session_uuid=session["session_uuid"],
                             telegram_id=update.effective_user.id
                         )
-                        if xlsx_path and os.path.exists(xlsx_path):
+
+                        if xlsx_report and "excel_paths" in xlsx_report:
+                            full_xlsx_path = xlsx_report["excel_paths"]["full"]
+                            top10_xlsx_path = xlsx_report["excel_paths"]["top10"]
+
+                            # Save full Excel to DB
                             save_excel_to_db(
                                 telegram_id=update.effective_user.id,
                                 user_id=session["user_id"],
                                 session_uuid=session["session_uuid"],
                                 chat_id=session["chat_id"],
-                                excel_path=xlsx_path,
+                                excel_path=full_xlsx_path,
                                 filename="all_ranked_companies.xlsx"
                             )
-                            await context.bot.send_document(
-                                chat_id=query.message.chat_id,
-                                document=open(xlsx_path, "rb"),
-                                filename="all_ranked_companies.xlsx",
-                                caption="🏆 Here are your ranked companies as an Excel sheet."
-                            )
-                            log("[SUPERVISOR] Ranking complete and Excel sent to user.")
+
+                            # Send only top 10 Excel to user
+                            if os.path.exists(top10_xlsx_path):
+                                with open(top10_xlsx_path, "rb") as top10_file:
+                                    await context.bot.send_document(
+                                        chat_id=query.message.chat_id,
+                                        document=top10_file,
+                                        filename="top_10_ranked_companies.xlsx",
+                                        caption="🏆 Here are the top 10 ranked companies as an Excel sheet."
+                                    )
+                            else:
+                                await context.bot.send_message(
+                                    chat_id=query.message.chat_id,
+                                    text="⚠️ Ranking completed but top 10 Excel file was not found."
+                                )
+
                             mark_user_completed(update.effective_user.id)
                         else:
                             await context.bot.send_message(
                                 chat_id=query.message.chat_id,
-                                text="⚠️ Ranking completed but Excel file was not found."
+                                text="⚠️ Ranking completed but Excel files were not found."
                             )
                             log("[SUPERVISOR] No Excel file to send.")
                     except Exception as e:
