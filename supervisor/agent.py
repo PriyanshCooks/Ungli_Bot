@@ -179,152 +179,150 @@ class SupervisorAgent:
                     )
         return results
 
-import pandas as pd
+    async def select_top_companies(self) -> Dict[str, Any]:
+        import time
+        start = time.time()
 
-async def select_top_companies(self) -> Dict[str, Any]:
-    import time
-    start = time.time()
-
-    if self.telegram_id:
-        log_event_to_mongo(
-            self.telegram_id, "supervisor_logs",
-            {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "event": "ranking_started",
-                "message": "Ranking started",
-            }
-        )
-
-    results = []
-    for i in range(0, len(self.companies), self.batch_size):
-        batch = self.companies[i:i + self.batch_size]
-        res = await self.process_batch(batch)
-        results.extend(res)
-
-    # Retry failed companies if any
-    if self.failed_companies:
         if self.telegram_id:
             log_event_to_mongo(
                 self.telegram_id, "supervisor_logs",
                 {
                     "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "event": "retry_failed_companies",
-                    "count": len(self.failed_companies),
-                    "message": "Retrying failed companies",
+                    "event": "ranking_started",
+                    "message": "Ranking started",
                 }
             )
-        retry_results = await self.process_batch(self.failed_companies)
-        results.extend(retry_results)
 
-    # Save failed companies info locally if any
-    if self.failed_companies:
+        results = []
+        for i in range(0, len(self.companies), self.batch_size):
+            batch = self.companies[i:i + self.batch_size]
+            res = await self.process_batch(batch)
+            results.extend(res)
+
+        # Retry failed companies if any
+        if self.failed_companies:
+            if self.telegram_id:
+                log_event_to_mongo(
+                    self.telegram_id, "supervisor_logs",
+                    {
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "event": "retry_failed_companies",
+                        "count": len(self.failed_companies),
+                        "message": "Retrying failed companies",
+                    }
+                )
+            retry_results = await self.process_batch(self.failed_companies)
+            results.extend(retry_results)
+
+        # Save failed companies info locally if any
+        if self.failed_companies:
+            folder = self._get_folder_path()
+            os.makedirs(folder, exist_ok=True)
+            failed_path = os.path.join(folder, "failed_companies.json")
+            with open(failed_path, "w", encoding="utf-8") as f:
+                json.dump(self.failed_companies, f, indent=2, ensure_ascii=False)
+            if self.telegram_id:
+                log_event_to_mongo(
+                    self.telegram_id, "supervisor_logs",
+                    {
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                        "event": "failed_companies_saved",
+                        "count": len(self.failed_companies),
+                        "message": "Failed companies saved",
+                    }
+                )
+
+        # Sort all companies by final_score descending
+        sorted_results = sorted(results, key=lambda x: x.final_score, reverse=True)
+
+        # Create detailed data for all ranked companies
+        all_data = []
+        for match in sorted_results:
+            all_data.append({
+                "company": match.company,
+                "final_score": match.final_score,
+                "reasoning": match.reasoning,
+                "address": self._get_company_field(match.company, "address"),
+                "phone": self._get_company_field(match.company, "phone", nested_key="national"),
+                # Add other fields/summaries as needed
+            })
+
+        df_all = pd.DataFrame(all_data)
+
         folder = self._get_folder_path()
         os.makedirs(folder, exist_ok=True)
-        failed_path = os.path.join(folder, "failed_companies.json")
-        with open(failed_path, "w", encoding="utf-8") as f:
-            json.dump(self.failed_companies, f, indent=2, ensure_ascii=False)
+        full_excel_path = os.path.join(folder, "all_ranked_companies.xlsx")
+        df_all.to_excel(full_excel_path, index=False)
+
+        # Create and save top 10 Excel
+        top10_df = df_all.head(10)
+        top10_excel_path = os.path.join(folder, "top_10_ranked_companies.xlsx")
+        top10_df.to_excel(top10_excel_path, index=False)
+
+        # Prepare markdown report for top 10 as before (optional)
+        top10 = sorted_results[:10]
+        md_path = os.path.join(folder, "all_ranked_companies.md")
+        markdown = "# Top 10 Ranked Companies\n\n"
+        for idx, comp in enumerate(top10, 1):
+            markdown += (
+                f"## {idx}. {comp.company}\n"
+                f"- **Final Score**: {comp.final_score:.1f}\n"
+                f"- **Reasoning**: {comp.reasoning}\n"
+                f"- **Address**: {self._get_company_field(comp.company, 'address')}\n"
+                f"- **Phone**: {self._get_company_field(comp.company, 'phone', nested_key='national')}\n\n"
+            )
+        markdown += (
+            "---\n"
+            f"Total Input Tokens: {self.total_input_tokens}\n\n"
+            f"Total Output Tokens: {self.total_output_tokens}\n\n"
+            f"Total Tokens: {self.total_input_tokens + self.total_output_tokens}\n\n"
+            f"Estimated Cost: ${round((self.total_input_tokens + self.total_output_tokens) / 1000 * PERPLEXITY_COST_PER_1K, 6)}\n"
+        )
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write(markdown)
+
+        # Optionally save JSON report locally
+        report = {
+            "ranked_companies": [
+                {
+                    **match.dict(),
+                    "address": self._get_company_field(match.company, "address"),
+                    "phone": self._get_company_field(match.company, "phone", nested_key="national")
+                }
+                for match in top10
+            ],
+            "token_usage": {
+                "input_tokens": self.total_input_tokens,
+                "output_tokens": self.total_output_tokens,
+                "total_tokens": self.total_input_tokens + self.total_output_tokens,
+                "estimated_cost_usd": round((self.total_input_tokens + self.total_output_tokens) / 1000 * PERPLEXITY_COST_PER_1K, 6)
+            },
+            "excel_paths": {
+                "full": full_excel_path,
+                "top10": top10_excel_path,
+            }
+        }
+        save_output_locally(ExtractedData(company="all_ranked_companies", variable_data=report), folder)
+
+        duration = time.time() - start
+        logging.info(f"Processing time: {duration:.2f} seconds")
+        logging.info(f"Token stats: input={self.total_input_tokens} output={self.total_output_tokens} cost=${report['token_usage']['estimated_cost_usd']}")
+
         if self.telegram_id:
             log_event_to_mongo(
                 self.telegram_id, "supervisor_logs",
                 {
                     "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "event": "failed_companies_saved",
-                    "count": len(self.failed_companies),
-                    "message": "Failed companies saved",
+                    "event": "ranking_completed",
+                    "total_companies": len(self.companies),
+                    "top_companies": [c.company for c in top10],
+                    "duration_seconds": duration,
+                    "message": "Ranking completed",
                 }
             )
 
-    # Sort all companies by final_score descending
-    sorted_results = sorted(results, key=lambda x: x.final_score, reverse=True)
-
-    # Create detailed data for all ranked companies
-    all_data = []
-    for match in sorted_results:
-        all_data.append({
-            "company": match.company,
-            "final_score": match.final_score,
-            "reasoning": match.reasoning,
-            "address": self._get_company_field(match.company, "address"),
-            "phone": self._get_company_field(match.company, "phone", nested_key="national"),
-            # Add other fields/summaries as needed
-        })
-
-    df_all = pd.DataFrame(all_data)
-
-    folder = self._get_folder_path()
-    os.makedirs(folder, exist_ok=True)
-    full_excel_path = os.path.join(folder, "all_ranked_companies.xlsx")
-    df_all.to_excel(full_excel_path, index=False)
-
-    # Create and save top 10 Excel
-    top10_df = df_all.head(10)
-    top10_excel_path = os.path.join(folder, "top_10_ranked_companies.xlsx")
-    top10_df.to_excel(top10_excel_path, index=False)
-
-    # Prepare markdown report for top 10 as before (optional)
-    top10 = sorted_results[:10]
-    md_path = os.path.join(folder, "all_ranked_companies.md")
-    markdown = "# Top 10 Ranked Companies\n\n"
-    for idx, comp in enumerate(top10, 1):
-        markdown += (
-            f"## {idx}. {comp.company}\n"
-            f"- **Final Score**: {comp.final_score:.1f}\n"
-            f"- **Reasoning**: {comp.reasoning}\n"
-            f"- **Address**: {self._get_company_field(comp.company, 'address')}\n"
-            f"- **Phone**: {self._get_company_field(comp.company, 'phone', nested_key='national')}\n\n"
-        )
-    markdown += (
-        "---\n"
-        f"Total Input Tokens: {self.total_input_tokens}\n\n"
-        f"Total Output Tokens: {self.total_output_tokens}\n\n"
-        f"Total Tokens: {self.total_input_tokens + self.total_output_tokens}\n\n"
-        f"Estimated Cost: ${round((self.total_input_tokens + self.total_output_tokens) / 1000 * PERPLEXITY_COST_PER_1K, 6)}\n"
-    )
-    with open(md_path, "w", encoding="utf-8") as f:
-        f.write(markdown)
-
-    # Optionally save JSON report locally
-    report = {
-        "ranked_companies": [
-            {
-                **match.dict(),
-                "address": self._get_company_field(match.company, "address"),
-                "phone": self._get_company_field(match.company, "phone", nested_key="national")
-            }
-            for match in top10
-        ],
-        "token_usage": {
-            "input_tokens": self.total_input_tokens,
-            "output_tokens": self.total_output_tokens,
-            "total_tokens": self.total_input_tokens + self.total_output_tokens,
-            "estimated_cost_usd": round((self.total_input_tokens + self.total_output_tokens) / 1000 * PERPLEXITY_COST_PER_1K, 6)
-        },
-        "excel_paths": {
-            "full": full_excel_path,
-            "top10": top10_excel_path,
-        }
-    }
-    save_output_locally(ExtractedData(company="all_ranked_companies", variable_data=report), folder)
-
-    duration = time.time() - start
-    logging.info(f"Processing time: {duration:.2f} seconds")
-    logging.info(f"Token stats: input={self.total_input_tokens} output={self.total_output_tokens} cost=${report['token_usage']['estimated_cost_usd']}")
-
-    if self.telegram_id:
-        log_event_to_mongo(
-            self.telegram_id, "supervisor_logs",
-            {
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "event": "ranking_completed",
-                "total_companies": len(self.companies),
-                "top_companies": [c.company for c in top10],
-                "duration_seconds": duration,
-                "message": "Ranking completed",
-            }
-        )
-
-    # Return the full report including the Excel file paths
-    return report
+        # Return the full report including the Excel file paths
+        return report
 
 
     def _save_company_output(self, match: CompanyMatchOutput):
