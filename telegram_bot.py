@@ -3,6 +3,7 @@ import sys
 import uuid
 import asyncio
 import logging
+import json
 from datetime import datetime, timezone
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -21,17 +22,15 @@ from back_end_llm import run_search_pipeline
 from supervisor import run_supervisor_pipeline
 from pdf_extract.brochure_extract import process_brochure
 
-
 from supervisor.utils import log_event_to_mongo
 
-
 from pymongo import MongoClient
+
 MONGODB_URL = "mongodb+srv://ayushsinghbasera:YEJTg3zhMwXJcTXm@cluster0.fmzrdga.mongodb.net/"
 DB_NAME = "chatbot_db"
 COLLECTION_NAME = "chat_sessions"
 EXCEL_DB_NAME = "bot_excel_reports_db"
 EXCEL_COLLECTION_NAME = "bot_excel_reports"
-
 
 os.environ["TESSDATA_PREFIX"] = "/usr/local/share/tessdata/"
 
@@ -45,15 +44,12 @@ logging.basicConfig(
 )
 original_print = print  # <--- save the original print!
 
-
 def log(*args, **kwargs):
     msg = " ".join(str(a) for a in args)
     original_print(msg, **kwargs)
     logging.info(msg)
 
-
 print = log
-
 
 
 def mark_user_completed(telegram_id):
@@ -67,13 +63,11 @@ def mark_user_completed(telegram_id):
     )
 
 
-
 def has_user_completed(telegram_id):
     client = MongoClient(MONGODB_URL)
     db = client[DB_NAME]
     col = db[COLLECTION_NAME]
     return col.find_one({"telegram_id": telegram_id, "completed": True}) is not None
-
 
 
 def save_company_website(user_id, chat_id, session_uuid, website):
@@ -98,76 +92,7 @@ def save_company_website(user_id, chat_id, session_uuid, website):
             }
         }
         col.insert_one(fallback_data)
-
-
-OPENAI_FIRST_QUESTION = "What is your product and what does it do?"
-
-
-user_sessions = {}
-
-
-def get_or_create_session(telegram_user_id: int):
-    if has_user_completed(telegram_user_id):
-        return None
-    if telegram_user_id not in user_sessions:
-        user_sessions[telegram_user_id] = {
-            "user_id": str(uuid.uuid4()),
-            "chat_id": str(uuid.uuid4()),
-            "session_uuid": str(uuid.uuid4()),
-            "state": "await_website_prompt",
-            "website": None,
-            "brochure_uploaded": False,
-            "pipeline_triggered": False
-        }
-        log(f"[NEW SESSION CREATED] Telegram ID: {telegram_user_id} | UserID: {user_sessions[telegram_user_id]['user_id']} | ChatID: {user_sessions[telegram_user_id]['chat_id']}")
-        # Log session creation
-        log_event_to_mongo(
-            telegram_id=telegram_user_id,
-            log_type="bot_logs",
-            event_data={
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "event": "session_created",
-                "message": "New user session created."
-            }
-        )
-        # Also insert initial empty chat for that chat_id in Mongo
-        client = MongoClient(MONGODB_URL)
-        db = client[DB_NAME]
-        col = db[COLLECTION_NAME]
-        col.update_one(
-            {
-                "user_id": user_sessions[telegram_user_id]["user_id"],
-                "session_uuid": user_sessions[telegram_user_id]["session_uuid"],
-            },
-            {
-                "$setOnInsert": {
-                    "user_id": user_sessions[telegram_user_id]["user_id"],
-                    "session_uuid": user_sessions[telegram_user_id]["session_uuid"],
-                },
-                "$set": {f"chats.{user_sessions[telegram_user_id]['chat_id']}": {}},
-            },
-            upsert=True,
-        )
-    return user_sessions[telegram_user_id]
-
-
-
-def get_main_keyboard():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔁 Reset", callback_data="reset")],
-        [InlineKeyboardButton("⛔ End Conversation", callback_data="end")],
-    ])
-
-
-
-def get_yes_no_keyboard(prefix):
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✅ Yes", callback_data=f"{prefix}_yes")],
-        [InlineKeyboardButton("❌ No", callback_data=f"{prefix}_no")],
-    ])
-
-
-
+        
 def save_excel_to_db(telegram_id, user_id, session_uuid, chat_id, excel_path, filename='all_ranked_companies.xlsx'):
     client = MongoClient(MONGODB_URL)
     db = client[EXCEL_DB_NAME]
@@ -198,6 +123,190 @@ def save_excel_to_db(telegram_id, user_id, session_uuid, chat_id, excel_path, fi
 
 
 
+OPENAI_FIRST_QUESTION = "What is your product and what does it do?"
+
+user_sessions = {}
+
+def get_or_create_session(telegram_user_id: int):
+    if has_user_completed(telegram_user_id):
+        return None
+    if telegram_user_id not in user_sessions:
+        user_sessions[telegram_user_id] = {
+            "user_id": str(uuid.uuid4()),
+            "chat_id": str(uuid.uuid4()),
+            "session_uuid": str(uuid.uuid4()),
+            "state": "await_website_prompt",
+            "website": None,
+            "brochure_uploaded": False,
+            "pipeline_triggered": False,
+            # Track if applications shown to user
+            "applications_shown": False,
+            "awaiting_lead_confirmation": False,
+        }
+        log(f"[NEW SESSION CREATED] Telegram ID: {telegram_user_id} | UserID: {user_sessions[telegram_user_id]['user_id']} | ChatID: {user_sessions[telegram_user_id]['chat_id']}")
+        # Log session creation
+        log_event_to_mongo(
+            telegram_id=telegram_user_id,
+            log_type="bot_logs",
+            event_data={
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "event": "session_created",
+                "message": "New user session created."
+            }
+        )
+        # Also insert initial empty chat for that chat_id in Mongo immediately
+        client = MongoClient(MONGODB_URL)
+        db = client[DB_NAME]
+        col = db[COLLECTION_NAME]
+        col.update_one(
+            {
+                "user_id": user_sessions[telegram_user_id]["user_id"],
+                "session_uuid": user_sessions[telegram_user_id]["session_uuid"],
+            },
+            {
+                "$setOnInsert": {
+                    "user_id": user_sessions[telegram_user_id]["user_id"],
+                    "session_uuid": user_sessions[telegram_user_id]["session_uuid"],
+                },
+                "$set": {f"chats.{user_sessions[telegram_user_id]['chat_id']}": {}},
+            },
+            upsert=True,
+        )
+    return user_sessions[telegram_user_id]
+
+def get_main_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔁 Reset", callback_data="reset")],
+        [InlineKeyboardButton("⛔ End Conversation", callback_data="end")],
+    ])
+
+def get_yes_no_keyboard(prefix):
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Yes", callback_data=f"{prefix}_yes")],
+        [InlineKeyboardButton("❌ No", callback_data=f"{prefix}_no")],
+    ])
+
+
+async def present_applications(update: Update, context: ContextTypes.DEFAULT_TYPE, session: dict):
+    """
+    Read output.json, parse applications, send list to user,
+    then ask if want to continue for leads.
+    """
+    try:
+        # Read output.json from current working directory
+        with open("output.json", "r", encoding="utf-8") as f:
+            data = json.load(f)
+            applications = data.get("extracted_applications", [])
+    except Exception as e:
+        log(f"[ERROR] Failed to read or parse output.json: {e}")
+        await update.effective_message.reply_text(
+            "⚠️ Failed to fetch product applications. Please try again later."
+        )
+        return False
+
+    if not applications:
+        await update.effective_message.reply_text(
+            "No specific product applications were identified for your product."
+        )
+        return False
+
+    # Send the list of applications to the user
+    apps_text = "\n".join(f"- {app}" for app in applications)
+    message = (
+        "We found the following specific applications where your product fits:\n\n"
+        f"{apps_text}\n\n"
+        "Would you like to continue and receive the leads for these applications?"
+    )
+    await update.effective_message.reply_text(
+        message,
+        reply_markup=get_yes_no_keyboard("continue")
+    )
+    session["applications_shown"] = True
+    session["awaiting_lead_confirmation"] = True
+    return True
+
+
+async def run_pipeline_then_present(update: Update, context: ContextTypes.DEFAULT_TYPE, session: dict):
+    """
+    Run the search pipeline then show applications list and ask user.
+    """
+    user_id = session["user_id"]
+    chat_id = session["chat_id"]
+    session_uuid = session["session_uuid"]
+
+    log(f"[PIPELINE] Triggering run_search_pipeline for user={user_id} chat={chat_id} session={session_uuid}")
+
+    await update.effective_message.reply_text("Running application search pipeline, please wait...")
+
+    # Run blocking run_search_pipeline in thread
+    await asyncio.to_thread(run_search_pipeline, user_id=user_id, chat_id=chat_id, session_uuid=session_uuid)
+
+    log(f"[PIPELINE] Search pipeline completed for user={user_id}")
+
+    # Present applications to user
+    return await present_applications(update, context, session)
+
+
+async def run_ranking_pipeline_and_send_excel(update: Update, context: ContextTypes.DEFAULT_TYPE, session: dict):
+    """
+    Run supervisor ranking pipeline, save Excel to DB, and send top 10 Excel to user.
+    """
+    user_id = session["user_id"]
+    chat_id = session["chat_id"]
+    session_uuid = session["session_uuid"]
+    telegram_id = update.effective_user.id
+
+    await update.effective_message.reply_text("Running company ranking pipeline, please wait...")
+
+    try:
+        xlsx_report = await run_supervisor_pipeline(
+            user_id=user_id,
+            chat_id=chat_id,
+            session_uuid=session_uuid,
+            telegram_id=telegram_id
+        )
+
+        if xlsx_report and "excel_paths" in xlsx_report:
+            full_xlsx_path = xlsx_report["excel_paths"]["full"]
+            top10_xlsx_path = xlsx_report["excel_paths"]["top10"]
+
+            # Save full Excel to DB
+            save_excel_to_db(
+                telegram_id=telegram_id,
+                user_id=user_id,
+                session_uuid=session_uuid,
+                chat_id=chat_id,
+                excel_path=full_xlsx_path,
+                filename="all_ranked_companies.xlsx"
+            )
+
+            # Send only top 10 Excel to user
+            if os.path.exists(top10_xlsx_path):
+                with open(top10_xlsx_path, "rb") as top10_file:
+                    await context.bot.send_document(
+                        chat_id=update.effective_chat.id,
+                        document=top10_file,
+                        filename="top_10_ranked_companies.xlsx",
+                        caption="🏆 Here are the top 10 ranked companies as an Excel sheet. To unlock the complete list of leads, contact: 8800793038"
+                    )
+            else:
+                await update.effective_message.reply_text(
+                    "⚠️ Ranking completed but top 10 Excel file was not found."
+                )
+
+            mark_user_completed(telegram_id)
+        else:
+            await update.effective_message.reply_text(
+                "⚠️ Ranking completed but Excel files were not found."
+            )
+            log("[SUPERVISOR] No Excel file to send.")
+    except Exception as e:
+        log(f"[SUPERVISOR ERROR] {e}")
+        await update.effective_message.reply_text(
+            "Sorry, we encountered an error. Please try again later."
+        )
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     telegram_id = update.effective_user.id
     if has_user_completed(telegram_id):
@@ -205,7 +314,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     session = get_or_create_session(telegram_id)
     session["state"] = "await_website_prompt"
-
 
     log_event_to_mongo(
         telegram_id=telegram_id,
@@ -217,12 +325,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
     )
 
-
     await update.message.reply_text(
         "👋 Welcome! Let's get started.\n\nDo you have a company website?",
         reply_markup=get_yes_no_keyboard("website")
     )
-
 
 
 async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -234,7 +340,6 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("⚠️ You have already completed your session! Only one run is allowed per user.")
         return
     log(f"[BUTTON CLICKED] {data} | State: {session['state']}")
-
 
     log_event_to_mongo(
         telegram_id=update.effective_user.id,
@@ -248,11 +353,21 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         }
     )
 
+    # Handle continue after showing applications
+    if session.get("awaiting_lead_confirmation"):
+        if data == "continue_yes":
+            session["awaiting_lead_confirmation"] = False
+            await query.edit_message_text("Great! Proceeding to generate leads and rankings. Please wait...")
+            await run_ranking_pipeline_and_send_excel(update, context, session)
+            return
+        elif data == "continue_no":
+            session["awaiting_lead_confirmation"] = False
+            await query.edit_message_text("Okay, you can continue chatting or reset/end the conversation anytime.", reply_markup=get_main_keyboard())
+            return
 
     if data == "website_yes":
         session["state"] = "await_website_input"
         await query.edit_message_text("🌐 Please enter the company website URL.")
-
 
     elif data == "website_no":
         session["state"] = "await_brochure_prompt"
@@ -260,22 +375,21 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "📎 Do you have a brochure (PDF)?", reply_markup=get_yes_no_keyboard("brochure")
         )
 
-
     elif data == "brochure_yes":
         session["state"] = "await_brochure_upload"
         await query.edit_message_text("📎 Please upload the brochure file now (PDF).")
-
 
     elif data == "brochure_no":
         session["state"] = "qa_flow"
         await query.edit_message_text("✅ Thanks! Let's begin.")
         await begin_qa_flow(update, session)
 
-
     elif data == "reset":
         old_chat_id = session["chat_id"]
         session["chat_id"] = str(uuid.uuid4())
         session["state"] = "qa_flow"
+        session["applications_shown"] = False
+        session["awaiting_lead_confirmation"] = False
         # Initialize empty new chat under new chat_id in Mongo immediately!
         client = MongoClient(MONGODB_URL)
         db = client[DB_NAME]
@@ -294,7 +408,6 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         store_message(session["user_id"], session["chat_id"], OPENAI_FIRST_QUESTION, "", role="assistant")
         await query.edit_message_text("🔁 Conversation reset!\n\n" + OPENAI_FIRST_QUESTION, reply_markup=get_main_keyboard())
 
-
     elif data == "end":
         log(f"[END] Conversation ended by user {session['user_id']}")
         log_event_to_mongo(
@@ -310,7 +423,6 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             session["pipeline_triggered"] = True
             await query.edit_message_text("⛔ Conversation ended by user. Triggering the pipeline...")
             store_message(session["user_id"], session["chat_id"], "", "Conversation ended by user.", role="system")
-
 
             async def run_and_notify():
                 try:
@@ -329,68 +441,16 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             text="⚠️ Internal error: No valid session history found. Please /start over."
                         )
                         return
-                    log(f"[PIPELINE] Triggering run_search_pipeline for user={session['user_id']} chat={session['chat_id']} session={session['session_uuid']}")
-                    await asyncio.to_thread(
-                        run_search_pipeline,
-                        user_id=session["user_id"], chat_id=session["chat_id"], session_uuid=session["session_uuid"]
-                    )
+                    # Run search pipeline and present applications
+                    presented = await run_pipeline_then_present(update, context, session)
+                    if not presented:
+                        # If presenting applications failed, run ranking pipeline directly
+                        await run_ranking_pipeline_and_send_excel(update, context, session)
+                    else:
+                        # Wait for user confirmation before running ranking (handled in handle_button)
+                        pass
+
                     log(f"[PIPELINE] Pipeline ended for user={session['user_id']}")
-
-
-                    await context.bot.send_message(
-                        chat_id=query.message.chat_id,
-                        text="✅ Pipeline ended. Running company ranking..."
-                    )
-                    try:
-                        xlsx_report = await run_supervisor_pipeline(
-                            user_id=session["user_id"],
-                            chat_id=session["chat_id"],
-                            session_uuid=session["session_uuid"],
-                            telegram_id=update.effective_user.id
-                        )
-
-                        if xlsx_report and "excel_paths" in xlsx_report:
-                            full_xlsx_path = xlsx_report["excel_paths"]["full"]
-                            top10_xlsx_path = xlsx_report["excel_paths"]["top10"]
-
-                            # Save full Excel to DB
-                            save_excel_to_db(
-                                telegram_id=update.effective_user.id,
-                                user_id=session["user_id"],
-                                session_uuid=session["session_uuid"],
-                                chat_id=session["chat_id"],
-                                excel_path=full_xlsx_path,
-                                filename="all_ranked_companies.xlsx"
-                            )
-
-                            # Send only top 10 Excel to user
-                            if os.path.exists(top10_xlsx_path):
-                                with open(top10_xlsx_path, "rb") as top10_file:
-                                    await context.bot.send_document(
-                                        chat_id=query.message.chat_id,
-                                        document=top10_file,
-                                        filename="top_10_ranked_companies.xlsx",
-                                        caption="🏆 Here are the top 10 ranked companies as an Excel sheet. To unlock the complete list of leads, contact: 8800793038"
-                                    )
-                            else:
-                                await context.bot.send_message(
-                                    chat_id=query.message.chat_id,
-                                    text="⚠️ Ranking completed but top 10 Excel file was not found."
-                                )
-
-                            mark_user_completed(update.effective_user.id)
-                        else:
-                            await context.bot.send_message(
-                                chat_id=query.message.chat_id,
-                                text="⚠️ Ranking completed but Excel files were not found."
-                            )
-                            log("[SUPERVISOR] No Excel file to send.")
-                    except Exception as e:
-                        log(f"[SUPERVISOR ERROR] {e}")
-                        await context.bot.send_message(
-                            chat_id=query.message.chat_id,
-                            text="Sorry, we encountered an error. Please try again later."
-                        )
                 except Exception as ex:
                     log(f"[BOT ERROR] {ex}")
                     await context.bot.send_message(
@@ -398,9 +458,8 @@ async def handle_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         text="Sorry, we encountered an error. Please try again later."
                     )
             asyncio.create_task(run_and_notify())
-
-
-
+        else:
+            await query.edit_message_text("You have already ended the conversation and pipeline was triggered. Thank you.")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -498,7 +557,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Sorry, we encountered an error. Please try again later.")
 
 
-
 async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     session = get_or_create_session(update.effective_user.id)
     file = update.message.document
@@ -506,7 +564,6 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tg_file = await file.get_file()
     await tg_file.download_to_drive(brochure_path)
     log(f"[BROCHURE RECEIVED] File saved to {brochure_path}")
-
 
     log_event_to_mongo(
         telegram_id=update.effective_user.id,
@@ -517,7 +574,6 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "message": f"User uploaded brochure {file.file_name}"
         }
     )
-
 
     try:
         success, extracted_text = process_brochure(
@@ -532,7 +588,6 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             log("[BROCHURE ERROR] MongoDB update failed.")
             await update.message.reply_text("⚠️ Brochure processed but failed to update the database.")
-
 
         session["brochure_uploaded"] = True
         session["state"] = "qa_flow"
@@ -559,12 +614,9 @@ async def handle_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
         log(f"[CLEANUP] Temp file {brochure_path} removed.")
 
 
-
 async def begin_qa_flow(update: Update, session: dict):
     store_message(session["user_id"], session["chat_id"], OPENAI_FIRST_QUESTION, "", role="assistant")
     await update.effective_message.reply_text(OPENAI_FIRST_QUESTION, reply_markup=get_main_keyboard())
-
-
 
 def main():
     TOKEN = os.getenv("TELEGRAM_TOKEN")
